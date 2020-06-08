@@ -10,9 +10,10 @@ from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense, Input
 from keras.applications.resnet50 import ResNet50
 from keras.applications.resnet50 import preprocess_input
+from keras.applications.inception_v3 import inception_v3
+from keras.applications.inception_v3 import preprocess_input
 
 from focal_loss import focal_loss
-from weighted_crossentropy import weighted_categorical_crossentropy
 
 imageTargetSize = 256, 256
 batchSize = 8
@@ -48,9 +49,22 @@ testIm = testgen.flow_from_directory(
     shuffle=False,
     class_mode='binary')
 
+# Get number of positive and negative classes, and then calculate bias
+
+# ytrain = []
+#
+# for i in range(len(trainIm.filenames)):
+#     ytrain.extend(np.array(trainIm[i][1]))
+#
+# pos = np.sum(ytrain == 1)
+# neg = np.sum(ytrain == 0)
+# bias = np.log([pos/neg])
+#
+# print(pos, neg)
+
 # Set up transfer learning architecture
 
-base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
+base_model = keras.applications.InceptionV3(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 input_tensor = Input(shape=(*imageTargetSize, 3))
 x = base_model(input_tensor)
 x = GlobalAveragePooling2D()(x)
@@ -61,9 +75,10 @@ model = Model(inputs=input_tensor, outputs=pred)
 opt = keras.optimizers.Adam(
     lr=0.00001)
 
-loss = [focal_loss(alpha=0.25, gamma=3)]
-#loss = ['binary_crossentropy']
-#loss = [weighted_categorical_crossentropy(np.array[0.1, 0.9])]
+#loss = [focal_loss(alpha=0.25, gamma=2)]
+loss = ['binary_crossentropy']
+
+class_weight = {0: 0.05, 1: 0.95} # Can try using class weights to fix bias in the data
 
 model.compile(
     optimizer=opt,
@@ -72,8 +87,9 @@ model.compile(
 
 model.fit_generator(
     trainIm,
+    class_weight=class_weight,
     steps_per_epoch=2000 // batchSize,
-    epochs=3,
+    epochs=20,
     validation_data=valIm,
     validation_steps=800 // batchSize)
 
