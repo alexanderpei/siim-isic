@@ -1,9 +1,13 @@
+import pandas as pd
+import numpy as np
+import os
+
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense
 
-imageTargetSize = (256, 256)
+imageTargetSize = 256, 256
 batchSize = 16
 
 datagen = ImageDataGenerator(
@@ -33,12 +37,12 @@ valIm = datagen.flow_from_directory(
 testIm = testgen.flow_from_directory(
     '512x512-test',
     target_size=imageTargetSize,
-    batch_size=1,
+    batch_size=batchSize,
     shuffle=False,
     class_mode='binary')
 
 model = Sequential()
-model.add(Conv2D(32, (3, 3), input_shape=(256, 256, 3)))
+model.add(Conv2D(32, (3, 3), input_shape=(*imageTargetSize, 3)))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -62,7 +66,20 @@ model.fit_generator(
 
 testNames = testIm.filenames
 nTest = len(testNames)
-ytest = model.predict_generator(testIm, steps=nTest)
+ytest = model.predict_generator(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
 
 print(ytest)
 print(ytest.shape)
+
+# Test
+
+df_test = pd.DataFrame({
+    'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
+})
+
+df_test['image_name'] = df_test['image_name'].str.split('.').str[0]
+print(df_test.shape)
+df_test.head()
+
+df_test['target'] = ytest
+df_test.to_csv('submission.csv', index=False)
