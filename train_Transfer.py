@@ -1,22 +1,23 @@
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-import keras
 import os
 
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Sequential, Model
-from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
-from keras.layers import Activation, Dropout, Flatten, Dense, Input
-from keras.applications.resnet50 import ResNet50
-from keras.applications.resnet50 import preprocess_input
-from keras.applications.inception_v3 import inception_v3
-from keras.applications.inception_v3 import preprocess_input
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
+from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Input
+from tensorflow.keras.applications.resnet50 import preprocess_input
 
-from focal_loss import focal_loss
+import efficientnet.tfkeras as efn
+# from efficientnet import preprocessing as preprocess_input
+
+# Specify the input and batch size
 
 imageTargetSize = 256, 256
 batchSize = 8
+
+# Data generators for the image directories
 
 datagen = ImageDataGenerator(
             rotation_range=180,
@@ -62,23 +63,32 @@ testIm = testgen.flow_from_directory(
 #
 # print(pos, neg)
 
+
+
 # Set up transfer learning architecture
 
-base_model = keras.applications.InceptionV3(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
-input_tensor = Input(shape=(*imageTargetSize, 3))
-x = base_model(input_tensor)
-x = GlobalAveragePooling2D()(x)
-pred = Dense(1, activation='sigmoid')(x)
+base_model = efn.EfficientNetB0(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
-model = Model(inputs=input_tensor, outputs=pred)
+model = Sequential()
+model.add(base_model)
+model.add(GlobalAveragePooling2D())
+model.add(Dense(1024, activation='relu'))
+model.add(Dropout(0.3))
+model.add(Dense(512, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(256, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.1))
+model.add(Dense(1, activation='sigmoid'))
 
-opt = keras.optimizers.Adam(
+opt = tf.keras.optimizers.Adam(
     lr=0.00001)
 
 #loss = [focal_loss(alpha=0.25, gamma=2)]
-loss = ['binary_crossentropy']
+loss = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.1)
 
-class_weight = {0: 0.05, 1: 0.95} # Can try using class weights to fix bias in the data
+class_weight = {0: 0.1, 1: 0.9} # Can try using class weights to fix bias in the data
 
 model.compile(
     optimizer=opt,
@@ -93,7 +103,7 @@ model.fit_generator(
     validation_data=valIm,
     validation_steps=800 // batchSize)
 
-# Test
+# Test and create output CSV
 
 df_test = pd.DataFrame({
     'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
@@ -106,7 +116,6 @@ df_test.head()
 testNames = testIm.filenames
 nTest = len(testNames)
 ytest = model.predict_generator(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
-
 
 df_test['target'] = ytest
 df_test.to_csv('submission.csv', index=False)
