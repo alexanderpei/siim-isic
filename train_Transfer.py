@@ -4,6 +4,7 @@ import numpy as np
 import os
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Input
@@ -15,7 +16,8 @@ import efficientnet.tfkeras as efn
 # Specify the input and batch size
 
 imageTargetSize = 256, 256
-batchSize = 8
+batchSize = 4
+train = 0
 
 # Data generators for the image directories
 
@@ -63,11 +65,9 @@ testIm = testgen.flow_from_directory(
 #
 # print(pos, neg)
 
-
-
 # Set up transfer learning architecture
 
-base_model = efn.EfficientNetB0(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
+base_model = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 model = Sequential()
 model.add(base_model)
@@ -83,10 +83,10 @@ model.add(Dropout(0.1))
 model.add(Dense(1, activation='sigmoid'))
 
 opt = tf.keras.optimizers.Adam(
-    lr=0.00001)
+    lr=0.0001)
 
 #loss = [focal_loss(alpha=0.25, gamma=2)]
-loss = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.1)
+loss = tf.keras.losses.BinaryCrossentropy()
 
 class_weight = {0: 0.1, 1: 0.9} # Can try using class weights to fix bias in the data
 
@@ -95,15 +95,34 @@ model.compile(
     loss=loss,
     metrics=['accuracy', tf.keras.metrics.AUC()])
 
-model.fit_generator(
-    trainIm,
-    class_weight=class_weight,
-    steps_per_epoch=2000 // batchSize,
-    epochs=20,
-    validation_data=valIm,
-    validation_steps=800 // batchSize)
+# Callback function for saving prgoress
+
+checkpoint_path = "checkpoint/cp.ckpt"
+checkpoint_dir = os.path.dirname(checkpoint_path)
+
+# Create a callback that saves the model's weights
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                 save_weights_only=True,
+                                                 monitor='val_auc',
+                                                 mode='max',
+                                                 save_best_only=True,
+                                                 verbose=1)
+
+# Train
+
+if train:
+    model.fit(
+        trainIm,
+        class_weight=class_weight,
+        steps_per_epoch=2000 // batchSize,
+        epochs=20,
+        validation_data=valIm,
+        validation_steps=800 // batchSize,
+        callbacks=[cp_callback])
 
 # Test and create output CSV
+
+model.load_weights(checkpoint_path)
 
 df_test = pd.DataFrame({
     'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
@@ -115,7 +134,9 @@ df_test.head()
 
 testNames = testIm.filenames
 nTest = len(testNames)
-ytest = model.predict_generator(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
+ytest = model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
 
 df_test['target'] = ytest
 df_test.to_csv('submission.csv', index=False)
+
+model.evaluate(trainIm, steps=np.ceil(float(nTest) / float(batchSize)))
