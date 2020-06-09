@@ -14,6 +14,9 @@ import efficientnet.tfkeras as efn
 # from efficientnet import preprocessing as preprocess_input
 
 # Specify the input and batch size
+#
+#
+#
 
 imageTargetSize = 256, 256
 batchSize = 4
