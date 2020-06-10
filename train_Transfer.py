@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 import pandas as pd
 import numpy as np
 import os
@@ -9,7 +10,7 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Input
 from tensorflow.keras.applications.resnet50 import preprocess_input
-
+from tensorflow.keras.applications.resnet50 import ResNet50
 import efficientnet.tfkeras as efn
 
 # Check if on google colab
@@ -23,7 +24,7 @@ else:
 
 imageTargetSize = 256, 256
 batchSize = 4
-train = False
+train = True
 tf.random.set_seed(42069)
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
@@ -86,6 +87,7 @@ model.add(Dense(1, activation='sigmoid'))
 # Whatever optimizer you want to try, as well as the learning rate.
 opt = tf.keras.optimizers.Adam(
     lr=0.0001)
+opt = tfa.optimizers.Lookahead(opt)
 
 # Whatever loss function you wish to try.
 #loss = [focal_loss(alpha=0.25, gamma=2)]
@@ -115,6 +117,16 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                  save_best_only=True,
                                                  verbose=1)
 
+# Learn rate scheduler. Decrease learning rate over time
+
+def scheduler(epoch):
+  if epoch < 10:
+    return 0.001
+  else:
+    return 0.001 * tf.math.exp(0.1 * (10 - epoch))
+
+sc_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
+
 # Train
 
 if train:
@@ -125,7 +137,7 @@ if train:
         epochs=8,
         validation_data=valIm,
         validation_steps=800 // batchSize,
-        callbacks=[cp_callback])
+        callbacks=[cp_callback, sc_callback])
 
 # Test and create output CSV
 model.load_weights(checkpoint_path)
