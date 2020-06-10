@@ -6,6 +6,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense
+from tensorflow.keras.applications.resnet50 import preprocess_input
 
 if os.getcwd() == '/content/siim-isic':
     pathBase = '/content/drive/My Drive/KaggleData/dataset-siim-isic/'
@@ -75,7 +76,7 @@ model.compile(
 
 # Callback function for saving progress
 
-if not os.isdir('./checkpoint/'):
+if not os.path.isdir('./checkpoint/'):
     os.mkdir('./checkpoint/')
 
 checkpoint_path = "checkpoint/cp.ckpt"
