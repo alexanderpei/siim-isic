@@ -13,10 +13,13 @@ from tensorflow.keras.applications.resnet50 import preprocess_input
 import efficientnet.tfkeras as efn
 # from efficientnet import preprocessing as preprocess_input
 
+# Check if on google colab
+
+if os.getcwd() == '/content/siim-isic':
+    pathBase = '/content/drive/My Drive/KaggleData/dataset-siim-isic/'
+else:
+    pathBase = os.getcwd()
 # Specify the input and batch size
-#
-#
-#
 
 imageTargetSize = 256, 256
 batchSize = 4
@@ -37,19 +40,19 @@ testgen = ImageDataGenerator(
             preprocessing_function=preprocess_input)
 
 trainIm = datagen.flow_from_directory(
-    'data/train',
+    os.path.join(pathBase, 'data', 'train'),
     target_size=imageTargetSize,
     batch_size=batchSize,
     class_mode='binary')
 
 valIm = datagen.flow_from_directory(
-    'data/val',
+    os.path.join(pathBase, 'data', 'val'),
     target_size=imageTargetSize,
     batch_size=batchSize,
     class_mode='binary')
 
 testIm = testgen.flow_from_directory(
-    '512x512-test',
+    os.path.join(pathBase, '512x512-test'),
     target_size=imageTargetSize,
     batch_size=batchSize,
     shuffle=False,
@@ -98,7 +101,10 @@ model.compile(
     loss=loss,
     metrics=['accuracy', tf.keras.metrics.AUC()])
 
-# Callback function for saving prgoress
+# Callback function for saving progress
+
+if not os.isdir('./checkpoint/'):
+    os.mkdir('./checkpoint/')
 
 checkpoint_path = "checkpoint/cp.ckpt"
 checkpoint_dir = os.path.dirname(checkpoint_path)

@@ -5,13 +5,15 @@ import pandas as pd
 # Copies files from the original folders into folders that are easily usable by flow_from_directory() keras method
 
 if os.getcwd() == '/content/siim-isic':
-    pathData = '/content/drive/My Drive/KaggleData/512x512-dataset-melanoma/512x512-dataset-melanoma'
-    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/folds.csv')
+    pathData = '/content/drive/My Drive/KaggleData/dataset-siim-isic/512x512-dataset-melanoma/512x512-dataset-melanoma'
+    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/dataset-siim-isic/folds.csv')
 else:
     pathData = './512x512-dataset-melanoma/512x512-dataset-melanoma'
     dfFold = pd.read_csv(f'./folds.csv')
 
 foldNum = 2
+
+print('Moving images...')
 
 for idx in range(len(dfFold)):
     fileName = dfFold.at[idx, 'image_id'] + '.jpg'
@@ -28,4 +30,3 @@ for idx in range(len(dfFold)):
 
     fileOut = os.path.join(pathOut, fileName)
     shutil.copyfile(fileIn, fileOut)
-    print(idx)
