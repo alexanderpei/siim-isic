@@ -7,17 +7,19 @@ import pandas as pd
 if os.getcwd() == '/content/siim-isic':
     pathData = '/content/drive/My Drive/KaggleData/dataset-siim-isic/512x512-dataset-melanoma/512x512-dataset-melanoma'
     pathOut = '/content/drive/My Drive/KaggleData/dataset-siim-isic/'
-    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/dataset-siim-isic/folds08062020.csv')
+    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/dataset-siim-isic/folds_08062020.csv')
 else:
     pathData = './512x512-dataset-melanoma/512x512-dataset-melanoma'
     pathOut = os.getcwd()
-    dfFold = pd.read_csv(f'./folds08062020.csv')
+    dfFold = pd.read_csv(f'./folds_08062020.csv')
 
 foldNum = 2
 
 print('Moving images...')
 
 for idx in range(len(dfFold)):
+    if idx % 100 == 0:
+        print(idx)
     fileName = dfFold.at[idx, 'image_id'] + '.jpg'
     fileIn = os.path.join(pathData, fileName)
     target = str(dfFold.at[idx, 'target'])
