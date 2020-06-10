@@ -46,5 +46,3 @@ for idx in range(len(dfFold)):
             shutil.copyfile(fileIn, fileOut)
             c2 = 0
         c2 += 1
-
-
