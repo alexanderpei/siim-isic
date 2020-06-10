@@ -6,10 +6,12 @@ import pandas as pd
 
 if os.getcwd() == '/content/siim-isic':
     pathData = '/content/drive/My Drive/KaggleData/dataset-siim-isic/512x512-dataset-melanoma/512x512-dataset-melanoma'
-    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/dataset-siim-isic/folds.csv')
+    pathOut = '/content/drive/My Drive/KaggleData/dataset-siim-isic/'
+    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/dataset-siim-isic/folds08062020.csv')
 else:
     pathData = './512x512-dataset-melanoma/512x512-dataset-melanoma'
-    dfFold = pd.read_csv(f'./folds.csv')
+    pathOut = os.getcwd()
+    dfFold = pd.read_csv(f'./folds08062020.csv')
 
 foldNum = 2
 
@@ -21,12 +23,12 @@ for idx in range(len(dfFold)):
     target = str(dfFold.at[idx, 'target'])
 
     if dfFold.at[idx, 'fold'] == foldNum:
-        pathOut = os.path.join(os.getcwd(), 'data', 'val', target)
+        pathSplit = os.path.join(pathOut, 'data', 'val', target)
     else:
-        pathOut = os.path.join(os.getcwd(), 'data', 'train', target)
+        pathSplit = os.path.join(pathOut, 'data', 'train', target)
 
-    if not os.path.isdir(pathOut):
-        os.makedirs(pathOut)
+    if not os.path.isdir(pathSplit):
+        os.makedirs(pathSplit)
 
-    fileOut = os.path.join(pathOut, fileName)
+    fileOut = os.path.join(pathSplit, fileName)
     shutil.copyfile(fileIn, fileOut)
