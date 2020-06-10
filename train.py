@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import os
+import tensorflow as tf
 
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D
-from keras.layers import Activation, Dropout, Flatten, Dense
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense
 from tensorflow.keras.applications.resnet50 import preprocess_input
 
 if os.getcwd() == '/content/siim-isic':
