@@ -14,9 +14,12 @@ else:
     dfFold = pd.read_csv(f'./folds_08062020.csv')
 
 foldNum = 2
-subSetFact = 5 # If on google colab, reduce data by a factor of this number
+subSetFact = 1 # If on google colab, reduce data by a factor of this number
 
 print('Moving images...')
+
+c1 = 1
+c2 = 1
 
 for idx in range(len(dfFold)):
     if idx % 100 == 0:
@@ -24,9 +27,6 @@ for idx in range(len(dfFold)):
     fileName = dfFold.at[idx, 'image_id'] + '.jpg'
     fileIn = os.path.join(pathData, fileName)
     target = str(dfFold.at[idx, 'target'])
-
-    c1 = 0
-    c2 = 0
 
     if dfFold.at[idx, 'fold'] == foldNum:
         pathSplit = os.path.join(pathOut, 'data', 'val', target)
