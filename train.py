@@ -16,6 +16,7 @@ else:
 
 imageTargetSize = 256, 256
 batchSize = 16
+train = True
 
 # Data generators for the image directories
 

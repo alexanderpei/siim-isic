@@ -14,6 +14,7 @@ else:
     dfFold = pd.read_csv(f'./folds_08062020.csv')
 
 foldNum = 2
+subSetFact = 5 # If on google colab, reduce data by a factor of this number
 
 print('Moving images...')
 
@@ -24,13 +25,26 @@ for idx in range(len(dfFold)):
     fileIn = os.path.join(pathData, fileName)
     target = str(dfFold.at[idx, 'target'])
 
+    c1 = 0
+    c2 = 0
+
     if dfFold.at[idx, 'fold'] == foldNum:
         pathSplit = os.path.join(pathOut, 'data', 'val', target)
+        if not os.path.isdir(pathSplit):
+            os.makedirs(pathSplit)
+        fileOut = os.path.join(pathSplit, fileName)
+        if c1 == subSetFact:
+            shutil.copyfile(fileIn, fileOut)
+            c1 = 0
+        c1 += 1
     else:
         pathSplit = os.path.join(pathOut, 'data', 'train', target)
+        if not os.path.isdir(pathSplit):
+            os.makedirs(pathSplit)
+        fileOut = os.path.join(pathSplit, fileName)
+        if c2 == subSetFact:
+            shutil.copyfile(fileIn, fileOut)
+            c2 = 0
+        c2 += 1
 
-    if not os.path.isdir(pathSplit):
-        os.makedirs(pathSplit)
 
-    fileOut = os.path.join(pathSplit, fileName)
-    shutil.copyfile(fileIn, fileOut)

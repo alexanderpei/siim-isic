@@ -23,7 +23,9 @@ else:
 
 imageTargetSize = 256, 256
 batchSize = 4
-train = 0
+train = True
+tf.random.set_seed(1234)
+
 
 # Data generators for the image directories
 
@@ -103,7 +105,7 @@ model.compile(
 
 # Callback function for saving progress
 
-if not os.isdir('./checkpoint/'):
+if not os.path.isdir('./checkpoint/'):
     os.mkdir('./checkpoint/')
 
 checkpoint_path = "checkpoint/cp.ckpt"
@@ -124,7 +126,7 @@ if train:
         trainIm,
         class_weight=class_weight,
         steps_per_epoch=2000 // batchSize,
-        epochs=20,
+        epochs=8,
         validation_data=valIm,
         validation_steps=800 // batchSize,
         callbacks=[cp_callback])
