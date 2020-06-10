@@ -5,9 +5,9 @@ import pandas as pd
 # Copies files from the original folders into folders that are easily usable by flow_from_directory() keras method
 
 if os.getcwd() == '/content/siim-isic':
-    pathData = '/content/drive/My Drive/KaggleData/dataset-siim-isic/512x512-dataset-melanoma/512x512-dataset-melanoma'
-    pathOut = '/content/drive/My Drive/KaggleData/dataset-siim-isic/'
-    dfFold = pd.read_csv('/content/drive/My Drive/KaggleData/dataset-siim-isic/folds_08062020.csv')
+    pathData = '/content/drive/My Drive/datasets/siim-isic/512x512-dataset-melanoma/512x512-dataset-melanoma'
+    pathOut = '/content/drive/My Drive/datasets/siim-isic/'
+    dfFold = pd.read_csv('/content/drive/My Drive/datasets/siim-isic/folds_08062020.csv')
 else:
     pathData = './512x512-dataset-melanoma/512x512-dataset-melanoma'
     pathOut = os.getcwd()
