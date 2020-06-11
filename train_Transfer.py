@@ -23,10 +23,10 @@ else:
 # Specify the input and batch size
 
 imageTargetSize = 256, 256
-batchSize = 4
-train = False
+batchSize = 8
+train = True
 nEpochs = 30
-lr = 0.0001
+lr = 0.001
 cpCount = 0
 tf.random.set_seed(42069)
 
@@ -70,7 +70,7 @@ testIm = testGen.flow_from_directory(
 # Set up transfer learning architecture. We are using a pre-trained model to do transfer learning. Feel
 # free to change the base model to whatever model you like.
 
-baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
+baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Adding a few extra layers on top of the base model that we can train.
 
@@ -90,7 +90,7 @@ model.add(Dense(1, activation='sigmoid'))
 # Whatever optimizer you want to try, as well as the learning rate.
 opt = tf.keras.optimizers.Adam(
     lr=lr)
-opt = tfa.optimizers.Lookahead(opt)
+# opt = tfa.optimizers.Lookahead(opt)
 
 # Whatever loss function you wish to try.
 #loss = [focal_loss(alpha=0.25, gamma=2)]
@@ -111,6 +111,8 @@ while os.path.isdir(pathCP):
     cpCount += 1
     pathCP = os.path.join(os.getcwd(), 'checkpoint' + str(cpCount))
 
+os.mkdir(pathCP)
+
 checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
 
 # Create a callback that saves the model's weights
@@ -120,6 +122,11 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                  mode='max',
                                                  save_best_only=True,
                                                  verbose=1)
+
+# Log the training
+
+csvOut = os.path.join(pathCP, 'training.log')
+csv_callback = CSVLogger(csvOut)
 
 # Learn rate scheduler. Decrease learning rate over time
 
@@ -139,9 +146,10 @@ if train:
         class_weight=class_weight,
         steps_per_epoch=2000 // batchSize,
         epochs=nEpochs,
+        verbose=1,
         validation_data=valIm,
         validation_steps=800 // batchSize,
-        callbacks=[cp_callback, sc_callback])
+        callbacks=[cp_callback, sc_callback, csv_callback])
 
 # Test and create output CSV
 model.load_weights(checkpoint_path)
@@ -159,4 +167,5 @@ nTest = len(testNames)
 yTest = model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
 
 df_test['target'] = yTest
-df_test.to_csv('submission.csv', index=False)
+nameOut = 'submission' + str(cpCount) + '.csv'
+df_test.to_csv(nameOut, index=False)
