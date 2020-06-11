@@ -24,7 +24,7 @@ else:
 # Specify the input and batch size
 
 imageTargetSize = 256, 256
-batchSize = 8
+batchSize = 4
 train = True
 nEpochs = 30
 lr = 0.001
@@ -43,8 +43,8 @@ opt = tf.keras.optimizers.Adam(
 baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Whatever loss function you wish to try.
-loss = [focal_loss(alpha=0.25, gamma=2)]
-#loss = tf.keras.losses.BinaryCrossentropy()
+#loss = [focal_loss(alpha=0.25, gamma=2)]
+loss = tf.keras.losses.BinaryCrossentropy()
 
 # Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
 class_weight = {0: 0.1, 1: 0.9}
@@ -171,4 +171,7 @@ yTest = model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
 
 df_test['target'] = yTest
 nameOut = 'submission' + str(cpCount) + '.csv'
+
+# For some reason, things get scrambled in the cluster. Need to sort
+df_test['image_name'] = df_test['image_name'].sort_values(ascending=True).values
 df_test.to_csv(os.path.join(pathCP, nameOut), index=False)
