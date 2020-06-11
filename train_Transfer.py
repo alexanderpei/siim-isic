@@ -31,6 +31,24 @@ lr = 0.001
 cpCount = 0
 tf.random.set_seed(42069)
 
+# Model parameters up here for easier changing
+# Whatever optimizer you want to try, as well as the learning rate.
+opt = tf.keras.optimizers.Adam(
+    lr=lr)
+# opt = tfa.optimizers.Lookahead(opt)
+
+# Set up transfer learning architecture. We are using a pre-trained model to do transfer learning. Feel
+# free to change the base model to whatever model you like.
+
+baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
+
+# Whatever loss function you wish to try.
+loss = [focal_loss(alpha=0.25, gamma=2)]
+#loss = tf.keras.losses.BinaryCrossentropy()
+
+# Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
+class_weight = {0: 0.1, 1: 0.9}
+
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
 # Images are randomly rotated, shifted, and flipped to increase training generalization.
 #
@@ -68,10 +86,6 @@ testIm = testGen.flow_from_directory(
     shuffle=False,
     class_mode='binary')
 
-# Set up transfer learning architecture. We are using a pre-trained model to do transfer learning. Feel
-# free to change the base model to whatever model you like.
-
-baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Adding a few extra layers on top of the base model that we can train.
 
@@ -88,18 +102,6 @@ model.add(Dense(128, activation='selu'))
 model.add(Dropout(0.1))
 model.add(Dense(1, activation='sigmoid'))
 
-# Whatever optimizer you want to try, as well as the learning rate.
-opt = tf.keras.optimizers.Adam(
-    lr=lr)
-# opt = tfa.optimizers.Lookahead(opt)
-
-# Whatever loss function you wish to try.
-loss = [focal_loss(alpha=0.25, gamma=2)]
-#loss = tf.keras.losses.BinaryCrossentropy()
-
-# Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
-class_weight = {0: 0.1, 1: 0.9}
-
 # Compile the model
 model.compile(
     optimizer=opt,
@@ -110,7 +112,7 @@ model.compile(
 pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount))
 while os.path.isdir(pathCP):
     cpCount += 1
-    pathCP = os.path.join(os.getcwd(), 'checkkpoint', 'checkpoint' + str(cpCount))
+    pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount))
 
 os.makedirs(pathCP)
 
