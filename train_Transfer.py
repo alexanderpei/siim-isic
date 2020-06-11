@@ -26,8 +26,8 @@ else:
 imageTargetSize = 256, 256
 batchSize = 4
 train = True
-nEpochs = 30
-lr = 0.001
+nEpochs = 20
+lr = 0.0005
 cpCount = 0
 tf.random.set_seed(42069)
 
@@ -35,12 +35,12 @@ tf.random.set_seed(42069)
 # Whatever optimizer you want to try, as well as the learning rate.
 opt = tf.keras.optimizers.Adam(
     lr=lr)
-# opt = tfa.optimizers.Lookahead(opt)
+opt = tfa.optimizers.Lookahead(opt)
 
 # Set up transfer learning architecture. We are using a pre-trained model to do transfer learning. Feel
 # free to change the base model to whatever model you like.
 
-baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
+baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Whatever loss function you wish to try.
 #loss = [focal_loss(alpha=0.25, gamma=2)]
@@ -56,19 +56,19 @@ class_weight = {0: 0.1, 1: 0.9}
 # does not require data augmentation.
 
 trainGen = ImageDataGenerator(
-            samplewise_center=1,
-            samplewise_std_normalization=1,
-            brightness_range=[0.3,1.0],
+            featurewise_center=1,
+            featurewise_std_normalization=1,
+            brightness_range=[0.4,1.0],
             rotation_range=180,
             width_shift_range=0.2,
             height_shift_range=0.2,
             horizontal_flip=True,
             vertical_flip=True,
-            preprocessing_function=preprocess_input,
             fill_mode='nearest')
 
 testGen = ImageDataGenerator(
-            preprocessing_function=preprocess_input)
+            featurewise_center=1,
+            featurewise_std_normalization=1)
 
 trainIm = trainGen.flow_from_directory(
     os.path.join(pathBase, 'data', 'train'),
@@ -137,10 +137,10 @@ csv_callback = CSVLogger(csvOut)
 # Learn rate scheduler. Decrease learning rate over time
 
 def scheduler(epoch):
-  if epoch < 10:
+  if epoch < 6:
     return lr
   else:
-    return lr * tf.math.exp(0.2 * (10 - epoch))
+    return lr * tf.math.exp(0.2 * (6 - epoch))
 
 sc_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
