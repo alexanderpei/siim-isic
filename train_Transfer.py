@@ -77,13 +77,13 @@ baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shap
 model = Sequential()
 model.add(baseModel)
 model.add(GlobalAveragePooling2D())
-model.add(Dense(1024, activation='relu'))
+model.add(Dense(1024, activation='selu'))
 model.add(Dropout(0.3))
-model.add(Dense(512, activation='relu'))
+model.add(Dense(512, activation='selu'))
 model.add(Dropout(0.2))
-model.add(Dense(256, activation='relu'))
+model.add(Dense(256, activation='selu'))
 model.add(Dropout(0.2))
-model.add(Dense(128, activation='relu'))
+model.add(Dense(128, activation='selu'))
 model.add(Dropout(0.1))
 model.add(Dense(1, activation='sigmoid'))
 
@@ -134,7 +134,7 @@ def scheduler(epoch):
   if epoch < 10:
     return lr
   else:
-    return lr * tf.math.exp(0.1 * (10 - epoch))
+    return lr * tf.math.exp(0.2 * (10 - epoch))
 
 sc_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
