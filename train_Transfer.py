@@ -24,7 +24,9 @@ else:
 
 imageTargetSize = 256, 256
 batchSize = 4
-train = True
+train = False
+nEpochs = 30
+lr = 0.0001
 tf.random.set_seed(42069)
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
@@ -86,7 +88,7 @@ model.add(Dense(1, activation='sigmoid'))
 
 # Whatever optimizer you want to try, as well as the learning rate.
 opt = tf.keras.optimizers.Adam(
-    lr=0.0001)
+    lr=lr)
 opt = tfa.optimizers.Lookahead(opt)
 
 # Whatever loss function you wish to try.
@@ -121,9 +123,9 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 
 def scheduler(epoch):
   if epoch < 10:
-    return 0.001
+    return lr
   else:
-    return 0.001 * tf.math.exp(0.1 * (10 - epoch))
+    return lr * tf.math.exp(0.1 * (10 - epoch))
 
 sc_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
@@ -134,7 +136,7 @@ if train:
         trainIm,
         class_weight=class_weight,
         steps_per_epoch=2000 // batchSize,
-        epochs=8,
+        epochs=nEpochs,
         validation_data=valIm,
         validation_steps=800 // batchSize,
         callbacks=[cp_callback, sc_callback])
