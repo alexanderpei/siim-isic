@@ -15,7 +15,7 @@ import efficientnet.tfkeras as efn
 from focal_loss import focal_loss
 
 # Check if on google colab
-
+#
 if os.getcwd() == '/content/siim-isic':
     pathBase = '/content/drive/My Drive/datasets/siim-isic/'
 else:
