@@ -21,6 +21,8 @@ else:
 imageTargetSize = 256, 256
 batchSize = 4
 train = False
+nEpochs = 30
+lr = 0.0001
 tf.random.set_seed(42069)
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
@@ -76,7 +78,7 @@ model.add(Activation('sigmoid'))
 
 # Whatever optimizer you want to try, as well as the learning rate.
 opt = tf.keras.optimizers.Adam(
-    lr=0.0001)
+    lr=lr)
 
 # Whatever loss function you wish to try.
 #loss = [focal_loss(alpha=0.25, gamma=2)]
@@ -113,7 +115,7 @@ if train:
         trainIm,
         class_weight=class_weight,
         steps_per_epoch=2000 // batchSize,
-        epochs=8,
+        epochs=nEpochs,
         validation_data=valIm,
         validation_steps=800 // batchSize,
         callbacks=[cp_callback])
