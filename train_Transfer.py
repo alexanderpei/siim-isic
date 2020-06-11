@@ -27,6 +27,7 @@ batchSize = 4
 train = False
 nEpochs = 30
 lr = 0.0001
+cpCount = 0
 tf.random.set_seed(42069)
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
@@ -104,16 +105,17 @@ model.compile(
     loss=loss,
     metrics=['accuracy', tf.keras.metrics.AUC()])
 
-# Callback function for saving progress
-if not os.path.isdir('./checkpoint/'):
-    os.mkdir('./checkpoint/')
+# Creating the path for the checkpoint. Keep looping until is not a path. Callback function for saving progress
+pathCP = os.path.join(os.getcwd(), 'checkpoint' + str(cpCount))
+while os.path.isdir(pathCP):
+    cpCount += 1
+    pathCP = os.path.join(os.getcwd(), 'checkpoint' + str(cpCount))
 
-checkpoint_path = "checkpoint/cp.ckpt"
-checkpoint_dir = os.path.dirname(checkpoint_path)
+checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
 
 # Create a callback that saves the model's weights
 cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-                                                 save_weights_only=True,
+                                                 save_weights_only=False,
                                                  monitor='val_auc',
                                                  mode='max',
                                                  save_best_only=True,

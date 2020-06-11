@@ -9,6 +9,8 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D
 from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense
 from tensorflow.keras.applications.resnet50 import preprocess_input
 
+from focal_loss import focal_loss
+
 # Check if on google colab
 
 if os.getcwd() == '/content/siim-isic':
