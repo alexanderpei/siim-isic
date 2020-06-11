@@ -56,6 +56,9 @@ class_weight = {0: 0.1, 1: 0.9}
 # does not require data augmentation.
 
 trainGen = ImageDataGenerator(
+            samplewise_center=1,
+            samplewise_std_normalization=1,
+            brightness_range=[0.3,1.0],
             rotation_range=180,
             width_shift_range=0.2,
             height_shift_range=0.2,
