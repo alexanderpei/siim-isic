@@ -12,7 +12,6 @@ from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Input
 from tensorflow.keras.applications.resnet50 import preprocess_input
 from tensorflow.keras.applications.resnet50 import ResNet50
 import efficientnet.tfkeras as efn
-from focal_loss import focal_loss
 
 # Check if on google colab
 
@@ -26,10 +25,12 @@ else:
 imageTargetSize = 256, 256
 batchSize = 8
 train = True
-nEpochs = 30
-lr = 0.001
 cpCount = 0
 tf.random.set_seed(42069)
+
+# Creating the path for the checkpoint. Keep looping until is not a path. Callback function for saving progress
+pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount))
+checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
 # Images are randomly rotated, shifted, and flipped to increase training generalization.
@@ -37,29 +38,8 @@ tf.random.set_seed(42069)
 # trainGen is the generator for train and validation data, testGen is the generator for the training data which
 # does not require data augmentation.
 
-trainGen = ImageDataGenerator(
-            rotation_range=180,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            horizontal_flip=True,
-            vertical_flip=True,
-            preprocessing_function=preprocess_input,
-            fill_mode='nearest')
-
 testGen = ImageDataGenerator(
             preprocessing_function=preprocess_input)
-
-trainIm = trainGen.flow_from_directory(
-    os.path.join(pathBase, 'data', 'train'),
-    target_size=imageTargetSize,
-    batch_size=batchSize,
-    class_mode='binary')
-
-valIm = trainGen.flow_from_directory(
-    os.path.join(pathBase, 'data', 'val'),
-    target_size=imageTargetSize,
-    batch_size=batchSize,
-    class_mode='binary')
 
 testIm = testGen.flow_from_directory(
     os.path.join(pathBase, '512x512-test'),
@@ -71,7 +51,7 @@ testIm = testGen.flow_from_directory(
 # Set up transfer learning architecture. We are using a pre-trained model to do transfer learning. Feel
 # free to change the base model to whatever model you like.
 
-baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
+baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Adding a few extra layers on top of the base model that we can train.
 
@@ -94,8 +74,8 @@ opt = tf.keras.optimizers.Adam(
 # opt = tfa.optimizers.Lookahead(opt)
 
 # Whatever loss function you wish to try.
-loss = [focal_loss(alpha=0.25, gamma=2)]
-#loss = tf.keras.losses.BinaryCrossentropy()
+#loss = [focal_loss(alpha=0.25, gamma=2)]
+loss = tf.keras.losses.BinaryCrossentropy()
 
 # Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
 class_weight = {0: 0.1, 1: 0.9}
@@ -105,52 +85,6 @@ model.compile(
     optimizer=opt,
     loss=loss,
     metrics=['accuracy', tf.keras.metrics.AUC()])
-
-# Creating the path for the checkpoint. Keep looping until is not a path. Callback function for saving progress
-pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount))
-while os.path.isdir(pathCP):
-    cpCount += 1
-    pathCP = os.path.join(os.getcwd(), 'checkkpoint', 'checkpoint' + str(cpCount))
-
-os.makedirs(pathCP)
-
-checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
-
-# Create a callback that saves the model's weights
-cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-                                                 save_weights_only=True,
-                                                 monitor='val_auc',
-                                                 mode='max',
-                                                 save_best_only=True,
-                                                 verbose=1)
-
-# Log the training
-
-csvOut = os.path.join(pathCP, 'training.log')
-csv_callback = CSVLogger(csvOut)
-
-# Learn rate scheduler. Decrease learning rate over time
-
-def scheduler(epoch):
-  if epoch < 10:
-    return lr
-  else:
-    return lr * tf.math.exp(0.2 * (10 - epoch))
-
-sc_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
-
-# Train
-
-if train:
-    model.fit(
-        trainIm,
-        class_weight=class_weight,
-        steps_per_epoch=2000 // batchSize,
-        epochs=nEpochs,
-        verbose=1,
-        validation_data=valIm,
-        validation_steps=800 // batchSize,
-        callbacks=[cp_callback, sc_callback, csv_callback])
 
 # Test and create output CSV
 model.load_weights(checkpoint_path)
