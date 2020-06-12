@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import os
 
+from PIL import Image
+
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.models import Sequential, Model
@@ -43,11 +45,24 @@ opt = tfa.optimizers.Lookahead(opt)
 baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Whatever loss function you wish to try.
-#loss = [focal_loss(alpha=0.25, gamma=2)]
+# loss = [focal_loss(alpha=0.25, gamma=2)]
 loss = tf.keras.losses.BinaryCrossentropy()
 
 # Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
-class_weight = {0: 0.1, 1: 0.9}
+class_weight = {0: 0.05, 1: 0.95}
+
+# Need to get statistics of data to do feature wise mean and feature wise std.
+
+file_path = os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma')
+nFiles = len(os.listdir(file_path))
+x = np.zeros((nFiles, *imageTargetSize, 3), dtype=np.int8)
+
+i = 0
+for filename in os.listdir(file_path):
+    img = Image.open(os.path.join(file_path, filename))
+    img = img.resize((imageTargetSize))
+    x[i, :, :, :] = np.asarray(img, dtype=np.int8)
+    i += 1
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
 # Images are randomly rotated, shifted, and flipped to increase training generalization.
@@ -56,9 +71,9 @@ class_weight = {0: 0.1, 1: 0.9}
 # does not require data augmentation.
 
 trainGen = ImageDataGenerator(
-            featurewise_center=1,
-            featurewise_std_normalization=1,
-            brightness_range=[0.4,1.0],
+            featurewise_center=True,
+            featurewise_std_normalization=True,
+            brightness_range=[0.6,1.0],
             rotation_range=180,
             width_shift_range=0.2,
             height_shift_range=0.2,
@@ -67,8 +82,11 @@ trainGen = ImageDataGenerator(
             fill_mode='nearest')
 
 testGen = ImageDataGenerator(
-            featurewise_center=1,
-            featurewise_std_normalization=1)
+            featurewise_center=True,
+            featurewise_std_normalization=True)
+
+trainGen.fit(x)
+testGen.fit(x)
 
 trainIm = trainGen.flow_from_directory(
     os.path.join(pathBase, 'data', 'train'),
@@ -178,3 +196,4 @@ nameOut = 'submission' + str(cpCount) + '.csv'
 # For some reason, things get scrambled in the cluster. Need to sort
 df_test['image_name'] = df_test['image_name'].sort_values(ascending=True).values
 df_test.to_csv(os.path.join(pathCP, nameOut), index=False)
+
