@@ -17,31 +17,28 @@ import efficientnet.tfkeras as efn
 from focal_loss import focal_loss
 
 # Check if on google colab
-#
 if os.getcwd() == '/content/siim-isic':
     pathBase = '/content/drive/My Drive/datasets/siim-isic/'
 else:
     pathBase = os.getcwd()
 
-# Specify the input and batch size
+# Specify the input and batch size, as well as some other parameters
 
 imageTargetSize = 256, 256
 batchSize = 4
 train = True
 nEpochs = 20
 lr = 0.0005
-cpCount = 0
 tf.random.set_seed(42069)
 
 # Model parameters up here for easier changing
-# Whatever optimizer you want to try, as well as the learning rate.
+# Whatever optimizer you want to try
 opt = tf.keras.optimizers.Adam(
     lr=lr)
 opt = tfa.optimizers.Lookahead(opt)
 
 # Set up transfer learning architecture. We are using a pre-trained model to do transfer learning. Feel
 # free to change the base model to whatever model you like.
-
 baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
 # Whatever loss function you wish to try.
@@ -51,24 +48,22 @@ loss = tf.keras.losses.BinaryCrossentropy()
 # Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
 class_weight = {0: 0.05, 1: 0.95}
 
-# Need to get statistics of data to do feature wise mean and feature wise std.
-
+# Need to get statistics of data to do feature wise mean and feature wise std. Will randomly sample 1000 images in the
+# training dataset for ImageDataGenerator().fit()
 file_path = os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma')
 nFiles = len(os.listdir(file_path))
 nIdx = 1000
 x = np.zeros((nIdx, *imageTargetSize, 3), dtype=np.int8)
 
 idx = np.random.randint(0, nFiles, size=(nIdx))
-print(idx)
 
 for i in range(nIdx):
     filename = os.listdir(file_path)[idx[i]]
-    print(filename)
     img = Image.open(os.path.join(file_path, filename))
     img = img.resize((imageTargetSize))
     x[i, :, :, :] = np.asarray(img, dtype=np.int8)
 
-# Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
+# Data generators for the image directories.
 # Images are randomly rotated, shifted, and flipped to increase training generalization.
 #
 # trainGen is the generator for train and validation data, testGen is the generator for the training data which
@@ -89,6 +84,7 @@ testGen = ImageDataGenerator(
             featurewise_center=True,
             featurewise_std_normalization=True)
 
+# Need to fit the mean and variance of the 1000 randomly sampled images
 trainGen.fit(x)
 testGen.fit(x)
 del x
@@ -135,13 +131,14 @@ model.compile(
     metrics=['accuracy', tf.keras.metrics.AUC()])
 
 # Creating the path for the checkpoint. Keep looping until is not a path. Callback function for saving progress
+cpCount = 0
 pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount))
+
 while os.path.isdir(pathCP):
     cpCount += 1
     pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount))
 
 os.makedirs(pathCP)
-
 checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
 
 # Create a callback that saves the model's weights
