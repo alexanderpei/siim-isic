@@ -55,14 +55,18 @@ class_weight = {0: 0.05, 1: 0.95}
 
 file_path = os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma')
 nFiles = len(os.listdir(file_path))
-x = np.zeros((nFiles, *imageTargetSize, 3), dtype=np.int8)
+nIdx = 1000
+x = np.zeros((nIdx, *imageTargetSize, 3), dtype=np.int8)
 
-i = 0
-for filename in os.listdir(file_path):
+idx = np.random.randint(0, nFiles, size=(nIdx))
+print(idx)
+
+for i in range(nIdx):
+    filename = os.listdir(file_path)[idx[i]]
+    print(filename)
     img = Image.open(os.path.join(file_path, filename))
     img = img.resize((imageTargetSize))
     x[i, :, :, :] = np.asarray(img, dtype=np.int8)
-    i += 1
 
 # Data generators for the image directories. Using Resnet preprocess function "preprocess_input" for the images.
 # Images are randomly rotated, shifted, and flipped to increase training generalization.
@@ -87,6 +91,7 @@ testGen = ImageDataGenerator(
 
 trainGen.fit(x)
 testGen.fit(x)
+del x
 
 trainIm = trainGen.flow_from_directory(
     os.path.join(pathBase, 'data', 'train'),
