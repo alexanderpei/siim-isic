@@ -28,7 +28,7 @@ for idx in range(len(dfFold)):
     fileIn = os.path.join(pathData, fileName)
     target = str(dfFold.at[idx, 'target'])
 
-    if dfFold.at[idx, 'source'] == 'ISIC20':
+    if True: # dfFold.at[idx, 'source'] == 'ISIC20':
         if dfFold.at[idx, 'fold'] == foldNum:
             pathSplit = os.path.join(pathOut, 'data', 'val', target)
             if not os.path.isdir(pathSplit):

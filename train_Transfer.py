@@ -16,23 +16,34 @@ from tensorflow.keras.applications.resnet50 import ResNet50
 import efficientnet.tfkeras as efn
 from focal_loss import focal_loss
 
-# Check if on google colab
+# Check if on google colab. If not, set the base directory to the current one.
 if os.getcwd() == '/content/siim-isic':
     pathBase = '/content/drive/My Drive/datasets/siim-isic/'
 else:
     pathBase = os.getcwd()
 
-# Specify the input and batch size, as well as some other parameters
+# Specify the input and batch size, as well as some other parameters. The original image size is 512x512. We will
+# set the image size to 256x256 for computational speed.
+#
+# Batch size is 4. With larger batches, computational speed will increase, however must GPUs won't be able to have
+# a large batch size. Having smaller batch sizes also increase stochasticity during learning. Consider that a bug or a
+# feature.
+#
+# train = True will either run model.fit() or not.
+#
+# nEpochs are the number of training epochs.
+#
+# lr is the learning rate. This should start between 0.001 and 0.00001.
 
 imageTargetSize = 256, 256
 batchSize = 4
 train = True
 nEpochs = 20
 lr = 0.0005
-tf.random.set_seed(42069)
+# tf.random.set_seed(42069)
 
-# Model parameters up here for easier changing
-# Whatever optimizer you want to try
+# Choose your optimizer function. For example, try tf.keras.optimizers.sgd()
+# Lookahead has been shown to reduce variance during training (https://arxiv.org/abs/1907.08610) . It is optional.
 opt = tf.keras.optimizers.Adam(
     lr=lr)
 opt = tfa.optimizers.Lookahead(opt)
@@ -41,15 +52,17 @@ opt = tfa.optimizers.Lookahead(opt)
 # free to change the base model to whatever model you like.
 baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(*imageTargetSize, 3))
 
-# Whatever loss function you wish to try.
-# loss = [focal_loss(alpha=0.25, gamma=2)]
-loss = tf.keras.losses.BinaryCrossentropy()
+# Whatever loss function you wish to try. Focal loss has been shown to work well (https://arxiv.org/abs/1708.02002).
+# Or you can try to use BCE.
+#loss = [focal_loss(alpha=0.25, gamma=2)]
+loss = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.1)
 
 # Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
-class_weight = {0: 0.05, 1: 0.95}
+class_weight = {0: 0.1, 1: 0.9}
 
 # Need to get statistics of data to do feature wise mean and feature wise std. Will randomly sample 1000 images in the
-# training dataset for ImageDataGenerator().fit()
+# training data set for ImageDataGenerator().fit(). We should find the statistics for the entire 60,000 images,
+# but your computer will probably run out of memory.
 file_path = os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma')
 nFiles = len(os.listdir(file_path))
 nIdx = 1000
@@ -195,7 +208,7 @@ yTest = model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
 df_test['target'] = yTest
 nameOut = 'submission' + str(cpCount) + '.csv'
 
-# For some reason, things get scrambled in the cluster. Need to sort
+# For some reason, things get scrambled in the cluster supercomputer. Need to sort.
 df_test['image_name'] = df_test['image_name'].sort_values(ascending=True).values
 df_test.to_csv(os.path.join(pathCP, nameOut), index=False)
 
