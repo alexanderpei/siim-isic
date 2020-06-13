@@ -47,7 +47,7 @@ model.add(Activation('sigmoid'))
 model.compile(
     optimizer=opt,
     loss=loss,
-    metrics=['accuracy', tf.keras.metrics.AUC()])
+    metrics=['accuracy', tf.keras.metrics.AUC()]) # Print the accuracy and AUC during training
 
 # ------------------ Gather Data ------------------ #
 
@@ -55,16 +55,16 @@ model.compile(
 # memorizing the images. We create a new test generator since we don't want to change around the test images.
 
 trainGen = ImageDataGenerator(
-            rescale=1./225,
-            rotation_range=180,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            horizontal_flip=True,
-            vertical_flip=True,
-            fill_mode='nearest')
+            rescale=1./225,         # Scale down the image which should improve learning gradients
+            rotation_range=180,     # Randomly rotate the image from -180 to 180 degrees
+            width_shift_range=0.2,  # Randomly shift the width of the image
+            height_shift_range=0.2, # "
+            horizontal_flip=True,   # Randomly flip the image horizontally
+            vertical_flip=True,     # "
+            fill_mode='nearest')    # Fill Nan values with the nearest pixel
 
 testGen = ImageDataGenerator(
-            rescale=1. / 225,
+            rescale=1./225,
             fill_mode='nearest')
 
 trainIm = trainGen.flow_from_directory(
@@ -97,6 +97,8 @@ model.fit(
     validation_steps=800 // batchSize)
 
 # ------------------ Do Predictions ------------------ #
+
+print('Generating predictions and submission file...')
 
 df_test = pd.DataFrame({
     'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
