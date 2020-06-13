@@ -88,13 +88,17 @@ testIm = testGen.flow_from_directory(
 
 # ------------------ Train the model ------------------ #
 
+# Need to specify how many batches we want to use during training
+steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize))
+validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize))
+
 model.fit(
     trainIm,
-    steps_per_epoch=2000 // batchSize,
+    steps_per_epoch=steps_per_epoch,
     epochs=nEpochs,
     verbose=1,
     validation_data=valIm,
-    validation_steps=800 // batchSize)
+    validation_steps=validation_steps)
 
 # ------------------ Do Predictions ------------------ #
 

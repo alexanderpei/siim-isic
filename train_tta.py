@@ -41,7 +41,7 @@ loss = [focal_loss(alpha=0.25, gamma=2)]
 
 
 def makeModel(opt, loss, base, h, w):
-    
+
     if base == 'b1':
         baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(h, w, 3))
     elif base == 'b3':
@@ -146,13 +146,17 @@ testIm = imGen.flow_from_directory(
 
 model = makeModel(opt, loss, base, h, w)
 
+# Need to specify how many batches we want to use during training
+steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize))
+validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize))
+
 model.fit(
     trainIm,
-    steps_per_epoch=2000 // batchSize,
+    steps_per_epoch=steps_per_epoch,
     epochs=nEpochs,
     verbose=1,
     validation_data=valIm,
-    validation_steps=800 // batchSize,
+    validation_steps=validation_steps,
     callbacks=[cp_callback, sc_callback, csv_callback])
 
 # ------------------ Do TTA Predictions ------------------ #
