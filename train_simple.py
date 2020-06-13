@@ -19,7 +19,7 @@ else:
 
 h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
 batchSize = 4   # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
-nEpochs = 3    # Number of training epochs.
+nEpochs = 3     # Number of training epochs.
 lr = 0.0005     # Learning rate
 foldNum = 0     # K-fold number you want to use (0-4)
 
