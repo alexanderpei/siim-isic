@@ -115,7 +115,7 @@ sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
 
 imGen = ImageDataGenerator(
             rescale=1./255,
-            brightness_range=[0.7,1.0],
+            brightness_range=[0.7, 1.0],
             rotation_range=180,
             width_shift_range=0.2,
             height_shift_range=0.2,
@@ -124,23 +124,23 @@ imGen = ImageDataGenerator(
             fill_mode='nearest')
 
 trainIm = imGen.flow_from_directory(
-    os.path.join(pathBase, 'data' + str(foldNum), 'train'),
-    target_size=(h, w),
-    batch_size=batchSize,
-    class_mode='binary')
+            os.path.join(pathBase, 'data' + str(foldNum), 'train'),
+            target_size=(h, w),
+            batch_size=batchSize,
+            class_mode='binary')
 
 valIm = imGen.flow_from_directory(
-    os.path.join(pathBase, 'data' + str(foldNum), 'val'),
-    target_size=(h, w),
-    batch_size=batchSize,
-    class_mode='binary')
+            os.path.join(pathBase, 'data' + str(foldNum), 'val'),
+            target_size=(h, w),
+            batch_size=batchSize,
+            class_mode='binary')
 
 testIm = imGen.flow_from_directory(
-    os.path.join(pathBase, '512x512-test'),
-    target_size=(h, w),
-    batch_size=batchSize,
-    shuffle=False,
-    class_mode='binary')
+            os.path.join(pathBase, '512x512-test'),
+            target_size=(h, w),
+            batch_size=batchSize,
+            shuffle=False,
+            class_mode='binary')
 
 model = makeModel(opt, loss, base, h, w)
 
@@ -170,6 +170,8 @@ nTest = len(testNames)
 
 # Loop over the number of test-time augmentations to do.
 for i in range(ntta):
+    print('Generating predictions and submission file...')
+
     yTest = model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize)))
 
     df_test['target'] = yTest
