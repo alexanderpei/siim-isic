@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -21,13 +22,18 @@ else:
 
 # ------------------ Initialize Parameters ------------------ #
 
-h = w = 256  # Image height and width to convert to. 256x256 is good for memory and performance.
-batchSize = 4  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
-nEpochs = 10  # Number of training epochs.
-lr = 0.0005  # Learning rate
-foldNum = 0  # K-fold number you want to use (0-4)
-base = 'b1'  # Base model you want to use. Should be some type of EfficientNet or ResNet.
-ntta = 5  # Number of time-test augmentations to do.
+h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
+batchSize = 4   # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
+nEpochs = 10    # Number of training epochs.
+lr = 0.0005     # Learning rate
+base = 'b1'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
+ntta = 5        # Number of time-test augmentations to do.
+
+# foldNum can be specified via the command line. This will indicate which k-fold split you want to use for training.
+try:
+    foldNUm = sys.argv[0]
+except NameError:
+    foldNum = 0
 
 # ------------------ Creating model ------------------ #
 
@@ -38,7 +44,6 @@ opt = tf.keras.optimizers.Adam(
 opt = tfa.optimizers.Lookahead(opt)
 
 loss = [focal_loss(alpha=0.25, gamma=2)]
-
 
 def makeModel(opt, loss, base, h, w):
 
@@ -116,7 +121,7 @@ sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
 # Using the same generator since we are also augmenting the test data images for test-time augmentation
 
 imGen = ImageDataGenerator(
-    rescale=1. / 255,
+    rescale=1./255,
     brightness_range=[0.7, 1.0],
     rotation_range=180,
     width_shift_range=0.2,
@@ -147,8 +152,8 @@ testIm = imGen.flow_from_directory(
 model = makeModel(opt, loss, base, h, w)
 
 # Need to specify how many batches we want to use during training
-steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize))
-validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize))
+steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize) / 4)
+validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize) / 4)
 
 model.fit(
     trainIm,
