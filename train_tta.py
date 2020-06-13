@@ -21,13 +21,13 @@ else:
 
 # ------------------ Initialize Parameters ------------------ #
 
-h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
-batchSize = 4   # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
-nEpochs = 10    # Number of training epochs.
-lr = 0.0005     # Learning rate
-foldNum = 0     # K-fold number you want to use (0-4)
-base = 'b1'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
-ntta = 5        # Number of time-test augmentations to do.
+h = w = 256  # Image height and width to convert to. 256x256 is good for memory and performance.
+batchSize = 4  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
+nEpochs = 10  # Number of training epochs.
+lr = 0.0005  # Learning rate
+foldNum = 0  # K-fold number you want to use (0-4)
+base = 'b1'  # Base model you want to use. Should be some type of EfficientNet or ResNet.
+ntta = 5  # Number of time-test augmentations to do.
 
 # ------------------ Creating model ------------------ #
 
@@ -39,8 +39,9 @@ opt = tfa.optimizers.Lookahead(opt)
 
 loss = [focal_loss(alpha=0.25, gamma=2)]
 
-def makeModel(opt, loss, base, h, w):
 
+def makeModel(opt, loss, base, h, w):
+    
     if base == 'b1':
         baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(h, w, 3))
     elif base == 'b3':
@@ -66,6 +67,7 @@ def makeModel(opt, loss, base, h, w):
         metrics=['accuracy', tf.keras.metrics.AUC()])
 
     return model
+
 
 # ------------------ Adding model callbacks ------------------ #
 
@@ -104,43 +106,43 @@ csv_callback = CSVLogger(csvOut)
 # sc_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
-                monitor='val_auc',
-                factor=0.5,
-                patience=3,
-                min_lr=1e-6)
+    monitor='val_auc',
+    factor=0.5,
+    patience=3,
+    min_lr=1e-6)
 
 # ------------------ Gather Data ------------------ #
 
 # Using the same generator since we are also augmenting the test data images for test-time augmentation
 
 imGen = ImageDataGenerator(
-            rescale=1./255,
-            brightness_range=[0.7, 1.0],
-            rotation_range=180,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            horizontal_flip=True,
-            vertical_flip=True,
-            fill_mode='nearest')
+    rescale=1. / 255,
+    brightness_range=[0.7, 1.0],
+    rotation_range=180,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    horizontal_flip=True,
+    vertical_flip=True,
+    fill_mode='nearest')
 
 trainIm = imGen.flow_from_directory(
-            os.path.join(pathBase, 'data' + str(foldNum), 'train'),
-            target_size=(h, w),
-            batch_size=batchSize,
-            class_mode='binary')
+    os.path.join(pathBase, 'data' + str(foldNum), 'train'),
+    target_size=(h, w),
+    batch_size=batchSize,
+    class_mode='binary')
 
 valIm = imGen.flow_from_directory(
-            os.path.join(pathBase, 'data' + str(foldNum), 'val'),
-            target_size=(h, w),
-            batch_size=batchSize,
-            class_mode='binary')
+    os.path.join(pathBase, 'data' + str(foldNum), 'val'),
+    target_size=(h, w),
+    batch_size=batchSize,
+    class_mode='binary')
 
 testIm = imGen.flow_from_directory(
-            os.path.join(pathBase, '512x512-test'),
-            target_size=(h, w),
-            batch_size=batchSize,
-            shuffle=False,
-            class_mode='binary')
+    os.path.join(pathBase, '512x512-test'),
+    target_size=(h, w),
+    batch_size=batchSize,
+    shuffle=False,
+    class_mode='binary')
 
 model = makeModel(opt, loss, base, h, w)
 
@@ -163,7 +165,7 @@ model.load_weights(checkpoint_path)
 df_test = pd.DataFrame({
     'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
 })
-df_test['image_name'] = df_test['image_name'].str.split('.').str[0] # Removes .jpg extention
+df_test['image_name'] = df_test['image_name'].str.split('.').str[0]  # Removes .jpg extention
 
 testNames = testIm.filenames
 nTest = len(testNames)
@@ -180,4 +182,3 @@ for i in range(ntta):
     # For some reason, things get scrambled in the cluster supercomputer. Need to sort.
     df_test['image_name'] = df_test['image_name'].sort_values(ascending=True).values
     df_test.to_csv(os.path.join(pathCP, nameOut), index=False)
-
