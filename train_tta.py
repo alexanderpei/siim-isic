@@ -35,6 +35,8 @@ try:
 except NameError:
     foldNum = 0
 
+print('Using k-fold: ' + str(foldNum))
+
 # ------------------ Creating model ------------------ #
 
 # Choose your optimizer function. For example, try tf.keras.optimizers.sgd()
