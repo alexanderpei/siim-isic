@@ -22,12 +22,12 @@ else:
 
 # ------------------ Initialize Parameters ------------------ #
 
-h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
+h = w = 128  # Image height and width to convert to. 256x256 is good for memory and performance.
 batchSize = 12  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
-nEpochs = 30    # Number of training epochs.
-lr = 0.001      # Learning rate
-base = 'b5'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
-ntta = 50       # Number of time-test augmentations to do.
+nEpochs = 30  # Number of training epochs.
+lr = 0.001  # Learning rate
+base = 'b5'  # Base model you want to use. Should be some type of EfficientNet or ResNet.
+ntta = 50  # Number of time-test augmentations to do.
 train = True
 
 # foldNum can be specified via the command line. This will indicate which k-fold split you want to use for training.
@@ -51,15 +51,15 @@ opt = tfa.optimizers.Lookahead(opt)
 
 loss = [focal_loss(alpha=0.25, gamma=2)]
 
-def makeModel(opt, loss, base, h, w):
 
+def makeModel(opt, loss, base, h, w):
     if base == 'b1':
         baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(h, w, 3))
     elif base == 'b3':
         baseModel = efn.EfficientNetB3(weights='imagenet', include_top=False, input_shape=(h, w, 3))
     elif base == 'b5':
         baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(h, w, 3))
-        
+
     model = Sequential()
     model.add(baseModel)
     model.add(GlobalAveragePooling2D())
@@ -87,14 +87,14 @@ def makeModel(opt, loss, base, h, w):
 # Creating the path for the checkpoint. Keep looping until is not a path. Callback function for saving progress
 
 if train:
-	cpCount = 0
-	pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
+    cpCount = 0
+    pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
 
-	while os.path.isdir(pathCP):
-	    cpCount += 1
-	    pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
+    while os.path.isdir(pathCP):
+        cpCount += 1
+        pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
 
-	os.makedirs(pathCP)
+    os.makedirs(pathCP)
 
 checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
 
@@ -129,12 +129,29 @@ sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
 
 # ------------------ Gather Data ------------------ #
 
+# Need to get statistics of data to do feature wise mean and feature wise std.
+
+file_path = os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma')
+nFiles = len(os.listdir(file_path))
+nIdx = 5000
+x = np.zeros((nIdx, h, w, 3), dtype=np.int8)
+
+idx = np.random.randint(0, nFiles, size=(nIdx))
+
+for i in range(nIdx):
+    filename = os.listdir(file_path)[idx[i]]
+    img = Image.open(os.path.join(file_path, filename))
+    img = img.resize((h, w))
+    x[i, :, :, :] = np.asarray(img, dtype=np.int8)
+
+
 # Using the same generator since we are also augmenting the test data images for test-time augmentation
 
 imGen = ImageDataGenerator(
     rescale=1./255,
     brightness_range=[0.7, 1.0],
     rotation_range=180,
+    zca_whitening=True,
     width_shift_range=0.2,
     height_shift_range=0.2,
     horizontal_flip=True,
@@ -167,14 +184,14 @@ steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize) / 2)
 validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize) / 2)
 
 if train:
-	model.fit(
-	    trainIm,
-	    steps_per_epoch=steps_per_epoch,
-	    epochs=nEpochs,
-	    verbose=2,
-	    validation_data=valIm,
-	    validation_steps=validation_steps,
-	    callbacks=[cp_callback, sc_callback, csv_callback])
+    model.fit(
+        trainIm,
+        steps_per_epoch=steps_per_epoch,
+        epochs=nEpochs,
+        verbose=2,
+        validation_data=valIm,
+        validation_steps=validation_steps,
+        callbacks=[cp_callback, sc_callback, csv_callback])
 
 # ------------------ Do TTA Predictions ------------------ #
 
@@ -185,11 +202,11 @@ for i in range(ntta):
     # New testIm every loop
 
     testIm = imGen.flow_from_directory(
-	    os.path.join(pathBase, '512x512-test'),
-	    target_size=(h, w),
-	    batch_size=batchSize,
-	    shuffle=False,
-	    class_mode='binary')
+        os.path.join(pathBase, '512x512-test'),
+        target_size=(h, w),
+        batch_size=batchSize,
+        shuffle=False,
+        class_mode='binary')
 
     # We are going to save a bunch of different submission fields and merge them later.
 

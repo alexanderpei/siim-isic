@@ -12,9 +12,9 @@ if os.getcwd() == '/content/siim-isic':
 else:
     pathData = './512x512-dataset-melanoma/512x512-dataset-melanoma'
     pathOut = os.getcwd()
-    dfFold = pd.read_csv(f'./folds_08062020.csv')
+    dfFold = pd.read_csv(f'./folds_13062020.csv')
 
-numFolds = 1
+numFolds = 5
 
 for idxFold in range(numFolds):
 

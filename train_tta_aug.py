@@ -2,17 +2,21 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import albumentations as A
 import tensorflow as tf
 import tensorflow_addons as tfa
 import efficientnet.tfkeras as efn
 
 from PIL import Image
 from focal_loss import focal_loss
+from ImageDataAugmentor.image_data_augmentor import *
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Conv2D, MaxPooling2D, GlobalAveragePooling2D
+
+from my_aug import preprocess_input
 
 # Check if on google colab. If not, set the base directory to the current one.
 if os.getcwd() == '/content/siim-isic':
@@ -22,18 +26,18 @@ else:
 
 # ------------------ Initialize Parameters ------------------ #
 
-h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
-batchSize = 12  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
-nEpochs = 30    # Number of training epochs.
-lr = 0.001      # Learning rate
-base = 'b5'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
-ntta = 50       # Number of time-test augmentations to do.
+h = w = 256  # Image height and width to convert to. 256x256 is good for memory and performance.
+batchSize = 4  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
+nEpochs = 30  # Number of training epochs.
+lr = 0.0001  # Learning rate
+base = 'b1'  # Base model you want to use. Should be some type of EfficientNet or ResNet.
+ntta = 50  # Number of time-test augmentations to do.
 train = True
 
 # foldNum can be specified via the command line. This will indicate which k-fold split you want to use for training.
 try:
     foldNum = sys.argv[1]
-except NameError:
+except (NameError, IndexError):
     foldNum = 0
 
 print('Using k-fold: ' + str(foldNum))
@@ -49,17 +53,16 @@ opt = tf.keras.optimizers.Adam(
     lr=lr)
 opt = tfa.optimizers.Lookahead(opt)
 
-loss = [focal_loss(alpha=0.25, gamma=2)]
+loss = [focal_loss(alpha=0.75, gamma=2)]
 
 def makeModel(opt, loss, base, h, w):
-
     if base == 'b1':
         baseModel = efn.EfficientNetB1(weights='imagenet', include_top=False, input_shape=(h, w, 3))
     elif base == 'b3':
         baseModel = efn.EfficientNetB3(weights='imagenet', include_top=False, input_shape=(h, w, 3))
     elif base == 'b5':
         baseModel = efn.EfficientNetB5(weights='imagenet', include_top=False, input_shape=(h, w, 3))
-        
+
     model = Sequential()
     model.add(baseModel)
     model.add(GlobalAveragePooling2D())
@@ -87,16 +90,16 @@ def makeModel(opt, loss, base, h, w):
 # Creating the path for the checkpoint. Keep looping until is not a path. Callback function for saving progress
 
 if train:
-	cpCount = 0
-	pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
+    cpCount = 0
+    pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
 
-	while os.path.isdir(pathCP):
-	    cpCount += 1
-	    pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
+    while os.path.isdir(pathCP):
+        cpCount += 1
+        pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
 
-	os.makedirs(pathCP)
+    os.makedirs(pathCP)
 
-checkpoint_path = os.path.join(pathCP, 'cp.ckpt')
+checkpoint_path = os.path.join(pathCP, 'cp-{epoch:04d}.ckpt')
 
 # Create a callback that saves the model's weights
 cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
@@ -129,17 +132,28 @@ sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
 
 # ------------------ Gather Data ------------------ #
 
+# Augmentations
+
+aug = A.Compose([
+    A.Flip(p=1),
+    A.RandomGamma(gamma_limit=(100, 200), p=0.5),
+    A.RandomBrightnessContrast(p=0.5),
+    A.ShiftScaleRotate(rotate_limit=180, scale_limit=0.9, p=0.5),
+    A.Rotate(limit=180, p=1),
+    A.RGBShift(p=0.5),
+    A.GaussNoise(p=0.5),
+    # A.CenterCrop(height=100, width=100, p=1),
+    # A.Normalize(p=1.0),
+    A.HueSaturationValue(p=0.5),
+    # A.ChannelShuffle(p=0.5),
+    A.MedianBlur(p=0.5, blur_limit=5),
+])
+
 # Using the same generator since we are also augmenting the test data images for test-time augmentation
 
-imGen = ImageDataGenerator(
+imGen = ImageDataAugmentor(
     rescale=1./255,
-    brightness_range=[0.7, 1.0],
-    rotation_range=180,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    horizontal_flip=True,
-    vertical_flip=True,
-    fill_mode='nearest')
+    augment=aug)
 
 trainIm = imGen.flow_from_directory(
     os.path.join(pathBase, 'data' + str(foldNum), 'train'),
@@ -163,18 +177,18 @@ testIm = imGen.flow_from_directory(
 model = makeModel(opt, loss, base, h, w)
 
 # Need to specify how many batches we want to use during training
-steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize) / 2)
-validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize) / 2)
+steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize) / 20)
+validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize) / 20)
 
 if train:
-	model.fit(
-	    trainIm,
-	    steps_per_epoch=steps_per_epoch,
-	    epochs=nEpochs,
-	    verbose=2,
-	    validation_data=valIm,
-	    validation_steps=validation_steps,
-	    callbacks=[cp_callback, sc_callback, csv_callback])
+    model.fit(
+        trainIm,
+        steps_per_epoch=steps_per_epoch,
+        epochs=nEpochs,
+        verbose=1,
+        validation_data=valIm,
+        validation_steps=validation_steps,
+        callbacks=[cp_callback, sc_callback, csv_callback])
 
 # ------------------ Do TTA Predictions ------------------ #
 
@@ -185,11 +199,11 @@ for i in range(ntta):
     # New testIm every loop
 
     testIm = imGen.flow_from_directory(
-	    os.path.join(pathBase, '512x512-test'),
-	    target_size=(h, w),
-	    batch_size=batchSize,
-	    shuffle=False,
-	    class_mode='binary')
+        os.path.join(pathBase, '512x512-test'),
+        target_size=(h, w),
+        batch_size=batchSize,
+        shuffle=False,
+        class_mode='binary')
 
     # We are going to save a bunch of different submission fields and merge them later.
 
