@@ -71,7 +71,7 @@ testGen = ImageDataGenerator(
 # The flow_from_directory() method does exactly this.
 
 trainIm = trainGen.flow_from_directory(
-            os.path.join(pathBase, 'data' + str(foldNum), 'train'),
+            os.path.join(pathBase, 'data_split', 'data' + str(foldNum), 'train'),
             target_size=(h, w),
             batch_size=batchSize,
             class_mode='binary')

@@ -11,7 +11,7 @@ if os.getcwd() == '/content/siim-isic':
     dfFold = pd.read_csv('/content/drive/My Drive/datasets/siim-isic/folds_08062020.csv')
 else:
     pathData = './512x512-dataset-melanoma/512x512-dataset-melanoma'
-    pathOut = os.getcwd()
+    pathOut = os.path.join(os.getcwd(), 'data_split')
     dfFold = pd.read_csv(f'./folds_13062020.csv')
 
 numFolds = 5

@@ -142,13 +142,13 @@ imGen = ImageDataGenerator(
     fill_mode='nearest')
 
 trainIm = imGen.flow_from_directory(
-    os.path.join(pathBase, 'data' + str(foldNum), 'train'),
+    os.path.join(pathBase, 'data_split', 'data' + str(foldNum), 'train'),
     target_size=(h, w),
     batch_size=batchSize,
     class_mode='binary')
 
 valIm = imGen.flow_from_directory(
-    os.path.join(pathBase, 'data' + str(foldNum), 'val'),
+    os.path.join(pathBase, 'data_split', 'data' + str(foldNum), 'val'),
     target_size=(h, w),
     batch_size=batchSize,
     class_mode='binary')
