@@ -124,7 +124,12 @@ if train:
 # Train
 
     model = Sequential()
-    model.add(Dense(20, input_dim=nModels, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+    model.add(Dense(200, input_dim=nModels, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+    model.add(Dropout(0.3))
+    model.add(Dense(200, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+    model.add(Dropout(0.3))
+    model.add(Dense(200, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+    model.add(Dropout(0.3))
     model.add(Dense(1, activation='sigmoid'))
 
     model.compile(

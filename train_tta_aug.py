@@ -8,7 +8,6 @@ import tensorflow_addons as tfa
 import efficientnet.tfkeras as efn
 
 from PIL import Image
-from pp_MoveIm import moveim
 from focal_loss import focal_loss
 from ImageDataAugmentor.image_data_augmentor import *
 
@@ -23,19 +22,15 @@ if os.getcwd() == '/content/siim-isic':
 else:
     pathBase = os.getcwd()
 
-# If you didn't move the images
-if not os.path.isdir('data_split'):
-    moveim()
-
 # ------------------ Initialize parameters ------------------ #
 
 h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
 batchSize = 4  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
 nEpochs = 4   # Number of training epochs.
 lr = 0.0001     # Learning rate
-base = 'b1'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
-ntta = 2       # Number of time-test augmentations to do.
-ntop = 2        # Number of top epoch model checkpoints to load.
+base = 'b5'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
+ntta = 3       # Number of time-test augmentations to do.
+ntop = 5        # Number of top epoch model checkpoints to load.
 
 # foldNum can be specified via the command line. This will indicate which k-fold split you want to use for training.
 try:
