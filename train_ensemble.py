@@ -5,6 +5,7 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_addons as tfa
 
+from scipy.stats import rankdata
 from focal_loss import focal_loss
 
 from tensorflow.keras.models import Sequential
@@ -12,6 +13,7 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.regularizers import l2
 from sklearn.preprocessing import normalize
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 
 from HelperFunctions import MakePlot
 
@@ -20,6 +22,7 @@ from HelperFunctions import MakePlot
 pathIn = os.path.join(os.getcwd(), 'forward')
 foldList = os.listdir(pathIn)
 nModels = len(foldList)
+print(nModels)
 
 train = True
 foldNum = 0
@@ -41,11 +44,11 @@ for path in os.listdir(pathIn):
 
     for file in glob.glob(os.path.join(pathIn, path, 'train*')):
         df_train = pd.read_csv(file)
-        tempTrain += df_train['target'].to_numpy() / len(glob.glob(os.path.join(pathIn, path, 'train*')))
+        tempTrain += rankdata(df_train['target'].to_numpy()) / len(glob.glob(os.path.join(pathIn, path, 'train*'))) / len(df_train.index)
 
     for file in glob.glob(os.path.join(pathIn, path, 'test*')):
         df_test = pd.read_csv(file)
-        tempTest += df_test['target'].to_numpy() / len(glob.glob(os.path.join(pathIn, path, 'test*')))
+        tempTest += rankdata(df_test['target'].to_numpy()) / len(glob.glob(os.path.join(pathIn, path, 'test*'))) / len(df_test.index)
 
     df_train['target'] = tempTrain
     df_test['target'] = tempTest
@@ -72,6 +75,8 @@ xTrain = xTrain[:, -nModels:].astype(np.float32)
 xTest = df_testall.to_numpy()
 xTest = xTest[:, -nModels:].astype(np.float32)
 
+print(xTest)
+
 # xVal = normalize(xVal, axis=0)
 # xTrain = normalize(xTrain, axis=0)
 # xTest = normalize(xTest, axis=0)
@@ -80,7 +85,7 @@ if train:
     # Model Params
 
     lr = 0.0001
-    nEpoch = 100
+    nEpoch = 30
     opt = tf.keras.optimizers.Adam(
         lr=lr)
     opt = tfa.optimizers.Lookahead(opt)
@@ -95,18 +100,31 @@ if train:
         patience=5,
         min_lr=1e-6)
 
-    # Train
+    cpCount = 0
+    pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
+
+    while os.path.isdir(pathCP):
+        cpCount += 1
+        pathCP = os.path.join(os.getcwd(), 'checkpoint', 'checkpoint' + str(cpCount) + '_' + str(foldNum))
+
+    # Log the training
+
+    csvOut = os.path.join(pathCP, 'training.log')
+    csv_callback = CSVLogger(csvOut)
+
+    os.makedirs(pathCP)
+
+    checkpoint_path = os.path.join(pathCP, 'cp-{epoch:04d}.ckpt')
+
+    # Create a callback that saves the model's weights
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                     save_weights_only=True,
+                                                     verbose=1)
+
+# Train
 
     model = Sequential()
-    model.add(Dense(20, input_dim=nModels, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(20, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(20, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(20, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(20, activation='relu'))
+    model.add(Dense(20, input_dim=nModels, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)))
     model.add(Dense(1, activation='sigmoid'))
 
     model.compile(
@@ -121,12 +139,25 @@ if train:
                 epochs=nEpoch,
                 batch_size=64,
                 verbose=1,
-                callbacks=[sc_callback])
+                callbacks=[sc_callback, cp_callback, csv_callback])
 
     # Do plot
     MakePlot(history)
 
+    #
+    df_log = pd.read_csv(os.path.join(pathCP, 'training.log'))
+    df_log = df_log.nlargest(n=10, columns='val_auc')
+    idx = df_log['epoch'].to_numpy() + 1
+
     yTest = model.predict(xTest)
 
+    for epoch in idx:
+        print(epoch)
+        stre = str(epoch)
+        ncp = stre.zfill(4)
+        checkpoint_path = os.path.join(pathCP, 'cp-' + ncp + '.ckpt')
+        model.load_weights(checkpoint_path)
+        yTest += model.predict(xTest)
+
     df_test['target'] = yTest
-    df_test.to_csv('test_ensemble.csv', index=False)
+    df_test.to_csv('e5.csv', index=False)
