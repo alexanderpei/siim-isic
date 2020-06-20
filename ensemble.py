@@ -4,6 +4,7 @@ import os
 from scipy.stats import rankdata
 
 pathIn = r'C:\Users\Alex\Desktop\subs3'
+pathIn = os.path.join(os.getcwd(), 'forward')
 
 all = np.zeros((10982))
 

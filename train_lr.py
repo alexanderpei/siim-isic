@@ -80,7 +80,11 @@ opt = tf.keras.optimizers.Adam(
 opt = tfa.optimizers.Lookahead(opt)
 
 loss = [focal_loss(alpha=0.75, gamma=2)]
+loss = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.1)
 
+# Can try using class weights to fix bias in the data. Down-weighting the benign class since there are more of them.
+class_weight = {0: 1, 1: 1}
+# Callback
 # Callback
 
 sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
@@ -92,15 +96,7 @@ sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
 # Train
 
 model = Sequential()
-model.add(Dense(100, input_dim=xTrain.shape[1], activation='relu'))
-model.add(Dropout(0.1))
-model.add(Dense(100, activation='relu'))
-model.add(Dropout(0.1))
-model.add(Dense(100, activation='relu'))
-model.add(Dropout(0.1))
-model.add(Dense(100, activation='relu'))
-model.add(Dropout(0.1))
-model.add(Dense(100, activation='relu'))
+model.add(Dense(20, input_dim=xTrain.shape[1], activation='relu'))
 model.add(Dense(1, activation='sigmoid'))
 
 model.compile(
@@ -114,6 +110,7 @@ history = model.fit(
     validation_data=(xVal, yVal),
     epochs=nEpoch,
     batch_size=64,
+    class_weight=class_weight,
     verbose=1,
     callbacks=[sc_callback])
 
