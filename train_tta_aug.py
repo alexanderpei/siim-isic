@@ -14,7 +14,7 @@ from ImageDataAugmentor.image_data_augmentor import *
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Conv2D, MaxPooling2D, GlobalAveragePooling2D
+from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Conv2D, MaxPooling2D, GlobalAveragePooling2D, BatchNormalization
 
 # Check if on google colab. If not, set the base directory to the current one.
 if os.getcwd() == '/content/siim-isic':
@@ -26,11 +26,12 @@ else:
 
 h = w = 256     # Image height and width to convert to. 256x256 is good for memory and performance.
 batchSize = 4  # Batch size. Higher batch size speeds up, but will cost more memory and be less stochastic.
-nEpochs = 4   # Number of training epochs.
+nEpochs = 10   # Number of training epochs.
 lr = 0.0001     # Learning rate
-base = 'b5'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
+base = 'b1'     # Base model you want to use. Should be some type of EfficientNet or ResNet.
 ntta = 3       # Number of time-test augmentations to do.
 ntop = 5        # Number of top epoch model checkpoints to load.
+tf.random.set_seed(8)
 
 # foldNum can be specified via the command line. This will indicate which k-fold split you want to use for training.
 try:
@@ -66,14 +67,18 @@ def makeModel(opt, loss, base, h, w):
     model = Sequential()
     model.add(baseModel)
     model.add(GlobalAveragePooling2D())
-    # model.add(Dense(1024, activation='selu'))
-    # model.add(Dropout(0.3))
-    # model.add(Dense(512, activation='selu'))
-    # model.add(Dropout(0.2))
-    # model.add(Dense(256, activation='selu'))
-    # model.add(Dropout(0.2))
-    # model.add(Dense(128, activation='selu'))
-    # model.add(Dropout(0.1))
+    model.add(Dense(1024, activation='selu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+    model.add(Dense(512, activation='selu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+    model.add(Dense(256, activation='selu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+    model.add(Dense(128, activation='selu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.1))
     model.add(Dense(1, activation='sigmoid'))
 
     # Compile the model
@@ -121,7 +126,7 @@ csv_callback = CSVLogger(csvOut)
 sc_callback = tf.keras.callbacks.ReduceLROnPlateau(
     monitor='val_auc',
     factor=0.6,
-    patience=4,
+    patience=10,
     min_lr=5e-6)
 
 # ------------------ Gather and augment data ------------------ #
@@ -172,8 +177,8 @@ testIm = imGen.flow_from_directory(
 model = makeModel(opt, loss, base, h, w)
 
 # Need to specify how many batches we want to use during training
-steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize) / 200)
-validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize) / 200)
+steps_per_epoch = np.ceil(float(len(trainIm.filenames)) / float(batchSize) / 100)
+validation_steps = np.ceil(float(len(valIm.filenames)) / float(batchSize) / 100)
 
 model.fit(
     trainIm,
@@ -191,74 +196,74 @@ model.fit(
 # prediction. This prediction will be merged with other models for an ensembled prediction.
 
 # Saving to a folder called 'forward'
-pathOut = os.path.join(os.getcwd(), 'forward', 'cp_' + str(cpCount) + '_' + str(foldNum))
-if not os.path.isdir(pathOut):
-    os.makedirs(pathOut)
-
-# Retrieving the n highest training checkpoints
-df_log = pd.read_csv(os.path.join(pathCP, 'training.log'))
-df_log = df_log.nlargest(n=ntop, columns='val_auc')
-idx = df_log['epoch'].to_numpy() + 1
-
-# Empty df with the image names in the train and test set
-df_test = pd.DataFrame({
-    'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
-})
-df_test['image_name'] = df_test['image_name'].str.split('.').str[0]  # Removes .jpg extension
-
-df_train = pd.DataFrame({
-    'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma'))
-})
-df_train['image_name'] = df_train['image_name'].str.split('.').str[0]  # Removes .jpg extension
-
-# Number of train and test file names
-nTest = df_test.shape[0]
-nTrain = df_train.shape[0]
-
-# Now we will loop through every epoch. Each epoch will have n number of test time augmentations.
-c = 0
-for epoch in idx:
-    # Formatting to load the checkpoint file
-    stre = str(epoch)
-    ncp = stre.zfill(4)
-    checkpoint_path = os.path.join(pathCP, 'cp-' + ncp + '.ckpt')
-
-    # Load the weights of this checkpoint into the model
-    model.load_weights(checkpoint_path)
-
-    yTest = np.zeros((nTest, 1))
-    yTrain = np.zeros((nTrain, 1))
-
-    # Now we will augment the data for ntta amount of times to change around the images
-    for i in range(ntta):
-
-        trainIm = imGen.flow_from_directory(
-            os.path.join(pathBase, '512x512-dataset-melanoma'),
-            target_size=(h, w),
-            batch_size=batchSize,
-            shuffle=False,
-            class_mode='binary')
-
-        testIm = imGen.flow_from_directory(
-            os.path.join(pathBase, '512x512-test'),
-            target_size=(h, w),
-            batch_size=batchSize,
-            shuffle=False,
-            class_mode='binary')
-
-        yTest += model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize))) / ntta
-        yTrain += model.predict(trainIm, steps=np.ceil(float(nTrain) / float(batchSize))) / ntta
-
-    df_test['target'] = yTest
-    df_train['target'] = yTrain
-
-    # Need to sort, sometimes the computer cluster will mess things up
-    df_test['image_name'] = df_test['image_name'].sort_values(ascending=True).values
-    df_train['image_name'] = df_train['image_name'].sort_values(ascending=True).values
-
-    nameTrain = 'train_' + str(foldNum) + '_' + str(c) + '.csv'
-    nameTest = 'test_' + str(foldNum) + '_' + str(c) + '.csv'
-
-    df_test.to_csv(os.path.join(pathOut, nameTest), index=False)
-    df_train.to_csv(os.path.join(pathOut, nameTrain), index=False)
-    c += 1
+# pathOut = os.path.join(os.getcwd(), 'forward', 'cp_' + str(cpCount) + '_' + str(foldNum))
+# if not os.path.isdir(pathOut):
+#     os.makedirs(pathOut)
+#
+# # Retrieving the n highest training checkpoints
+# df_log = pd.read_csv(os.path.join(pathCP, 'training.log'))
+# df_log = df_log.nlargest(n=ntop, columns='val_auc')
+# idx = df_log['epoch'].to_numpy() + 1
+#
+# # Empty df with the image names in the train and test set
+# df_test = pd.DataFrame({
+#     'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-test', '512x512-test'))
+# })
+# df_test['image_name'] = df_test['image_name'].str.split('.').str[0]  # Removes .jpg extension
+#
+# df_train = pd.DataFrame({
+#     'image_name': os.listdir(os.path.join(os.getcwd(), '512x512-dataset-melanoma', '512x512-dataset-melanoma'))
+# })
+# df_train['image_name'] = df_train['image_name'].str.split('.').str[0]  # Removes .jpg extension
+#
+# # Number of train and test file names
+# nTest = df_test.shape[0]
+# nTrain = df_train.shape[0]
+#
+# # Now we will loop through every epoch. Each epoch will have n number of test time augmentations.
+# c = 0
+# for epoch in idx:
+#     # Formatting to load the checkpoint file
+#     stre = str(epoch)
+#     ncp = stre.zfill(4)
+#     checkpoint_path = os.path.join(pathCP, 'cp-' + ncp + '.ckpt')
+#
+#     # Load the weights of this checkpoint into the model
+#     model.load_weights(checkpoint_path)
+#
+#     yTest = np.zeros((nTest, 1))
+#     yTrain = np.zeros((nTrain, 1))
+#
+#     # Now we will augment the data for ntta amount of times to change around the images
+#     for i in range(ntta):
+#
+#         trainIm = imGen.flow_from_directory(
+#             os.path.join(pathBase, '512x512-dataset-melanoma'),
+#             target_size=(h, w),
+#             batch_size=batchSize,
+#             shuffle=False,
+#             class_mode='binary')
+#
+#         testIm = imGen.flow_from_directory(
+#             os.path.join(pathBase, '512x512-test'),
+#             target_size=(h, w),
+#             batch_size=batchSize,
+#             shuffle=False,
+#             class_mode='binary')
+#
+#         yTest += model.predict(testIm, steps=np.ceil(float(nTest) / float(batchSize))) / ntta
+#         yTrain += model.predict(trainIm, steps=np.ceil(float(nTrain) / float(batchSize))) / ntta
+#
+#     df_test['target'] = yTest
+#     df_train['target'] = yTrain
+#
+#     # Need to sort, sometimes the computer cluster will mess things up
+#     df_test['image_name'] = df_test['image_name'].sort_values(ascending=True).values
+#     df_train['image_name'] = df_train['image_name'].sort_values(ascending=True).values
+#
+#     nameTrain = 'train_' + str(foldNum) + '_' + str(c) + '.csv'
+#     nameTest = 'test_' + str(foldNum) + '_' + str(c) + '.csv'
+#
+#     df_test.to_csv(os.path.join(pathOut, nameTest), index=False)
+#     df_train.to_csv(os.path.join(pathOut, nameTrain), index=False)
+#     c += 1

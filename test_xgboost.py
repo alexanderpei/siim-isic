@@ -8,18 +8,10 @@ from sklearn.metrics import roc_auc_score
 from scipy.stats import rankdata
 from sklearn.preprocessing import normalize
 
-import tensorflow as tf
-import tensorflow_addons as tfa
-
 from scipy.stats import rankdata
 from focal_loss import focal_loss
 
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.regularizers import l2
 from sklearn.preprocessing import normalize
-from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 # Path which contains all of the forward propagations of all of the images through each of the networks.
 
 pathIn = os.path.join(os.getcwd(), 'forward')
@@ -46,7 +38,7 @@ for path in os.listdir(pathIn):
 
     tempTrain = np.zeros((60487))
     tempTest = np.zeros((nTest))
-
+    print(path)
     for file in glob.glob(os.path.join(pathIn, path, 'train*')):
         df_train = pd.read_csv(file)
         tempTrain += rankdata(df_train['target'].to_numpy()) / len(glob.glob(os.path.join(pathIn, path, 'train*'))) / len(df_train.index)
@@ -125,64 +117,60 @@ xMetaTest = onehot(pd.read_csv('test.csv'))
 x = np.hstack((xIm, xMeta))
 xTest = np.hstack((xImTest, xMetaTest))
 
-for foldNum in range(5):
+for i in range(1):
 
-    idxVal = df_x.index[df_x['fold'] == foldNum]
-    idxTrain = df_x.index[df_x['fold'] != foldNum]
+    for foldNum in range(5):
 
-    # Split into training and validation set
-    xTrain = x[idxTrain, :]
-    xVal = x[idxVal, :]
+        idxVal = df_x.index[df_x['fold'] == foldNum]
+        idxTrain = df_x.index[df_x['fold'] != foldNum]
 
-    yTrain = y[idxTrain]
-    yVal = y[idxVal]
+        # Split into training and validation set
+        xTrain = x[idxTrain, :]
+        xVal = x[idxVal, :]
 
-    print(y.shape)
-    print(yTrain.shape)
-    print(yVal.shape)
-    print(idxTrain.shape)
-    print(idxTrain)
+        yTrain = y[idxTrain]
+        yVal = y[idxVal]
 
-    # model = XGBClassifier(n_estimators=2000,
-    #                         max_depth=8,
-    #                         objective='multi:softprob',
-    #                         seed=0,
-    #                         nthread=-1,
-    #                         learning_rate=0.15,
-    #                         num_class = 2,
-    #                         scale_pos_weight = (32542/584))
+        # model = XGBClassifier(n_estimators=2000,
+        #                         max_depth=8,
+        #                         objective='multi:softprob',
+        #                         seed=0,
+        #                         nthread=-1,
+        #                         learning_rate=0.15,
+        #                         num_class = 2,
+        #                         scale_pos_weight = (32542/584))
 
-    # model = XGBClassifier(n_estimators=1000)
-    #
-    # model.fit(xTrain, yTrain)
+        # model = XGBClassifier(n_estimators=1000)
+        #
+        # model.fit(xTrain, yTrain)
 
-    params = {"objective": "multi:softprob",
-              "num_class": 2,
-              "learning_rate" : 0.2,
-              "max_leaves": 16,
-              "grow_policy": "lossguide",
-              'min_child_weight': 50,
-              'lambda': 2,
-              'eval_metric': 'mlogloss',
-              "base_score": 0,
-              "tree_method": 'gpu_hist', "gpu_id": 0
-             }
+        # params = {"objective": "binary:logistic",
+        #           "learning_rate" : 0.2,
+        #           "max_leaves": 16,
+        #           "grow_policy": "lossguide",
+        #           'min_child_weight': 50,
+        #           'lambda': 2,
+        #           'eval_metric': 'auc',
+        #           "base_score": 0.9,
+        #           "tree_method": 'gpu_hist', "gpu_id": 0
+        #          }
 
-    print(xTrain.shape)
-    print(yTrain.shape)
-    print(xVal.shape)
-    print(yVal.shape)
+        # Gave a score of 0.922
+        params = {"objective": "binary:logistic",
+                  'eval_metric': 'auc',
+                  "tree_method": 'gpu_hist', "gpu_id": 0
+                 }
 
-    model = xgb.XGBModel(**params)
-    model.fit(xTrain, yTrain, eval_set=[(xTrain, yTrain), (xVal, yVal)],
-        eval_metric='mlogloss',
-        verbose=True)
+        model = xgb.XGBModel(**params)
+        model.fit(xTrain, yTrain, eval_set=[(xTrain, yTrain), (xVal, yVal)],
+            eval_metric='auc',
+            verbose=False)
 
-    y_pred = model.predict(xVal)[:,1]
-    auc = roc_auc_score(yVal, y_pred)
-    print("AUC: %.4f%%" % (auc))
+        y_pred = model.predict(xVal)
+        auc = roc_auc_score(yVal, y_pred)
+        print("AUC: %.4f%%" % (auc))
 
-    yTest += model.predict(xTest)[:,1]
+        yTest += model.predict(xTest)
 
 # yTest = np.sum(xTest, axis=1)
 
